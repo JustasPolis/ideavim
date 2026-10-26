@@ -29,31 +29,36 @@ import javax.swing.KeyStroke
  * It should be considered a "sub-plugin" of NERDTree and cannot be enabled independently,
  * i.e., should not function after the NERDTree plugin is turned off.
  */
-class NerdTreeEverywhere : VimExtension {
+class NerdTreeEverywhere(
+  private val focusManager: KeyboardFocusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager(),
+) : VimExtension {
   companion object {
     const val PLUGIN_NAME = "NERDTreeEverywhere" // This is a temporary name
   }
 
   override fun getName() = PLUGIN_NAME
 
+  private var registeredTree: Tree? = null
+
   val focusListener = PropertyChangeListener { evt ->
-    val newFocusOwner = evt.newValue
-    val oldFocusOwner = evt.oldValue
+    updateRegistration(evt.newValue as? Tree)
+  }
+
+  private fun updateRegistration(tree: Tree?) {
+    if (tree === registeredTree) return
     val dispatcher = service<Dispatcher>()
-    if (newFocusOwner is Tree) {
-      // Pick up the changed `g:NERDTreeMap*` variables without restarting the IDE
+    registeredTree?.let(dispatcher::unregisterCustomShortcutSet)
+    registeredTree = null
+    if (tree != null) {
       dispatcher.reloadMappings()
-      // It's okay to have `register` called multiple times, as its internal implementation prevents duplicate registrations
-      dispatcher.register(newFocusOwner)
-    }
-    // Unregistration of the shortcut is required to make the plugin disposable
-    if (oldFocusOwner is Tree) {
-      dispatcher.unregisterCustomShortcutSet(oldFocusOwner)
+      dispatcher.register(tree)
+      registeredTree = tree
     }
   }
 
   override fun init() {
-    KeyboardFocusManager.getCurrentKeyboardFocusManager().addPropertyChangeListener("focusOwner", focusListener)
+    focusManager.addPropertyChangeListener("focusOwner", focusListener)
+    updateRegistration(focusManager.focusOwner as? Tree)
   }
 
   @Service
@@ -64,13 +69,16 @@ class NerdTreeEverywhere : VimExtension {
   }
 
   override fun dispose() {
-    KeyboardFocusManager.getCurrentKeyboardFocusManager().removePropertyChangeListener("focusOwner", focusListener)
+    focusManager.removePropertyChangeListener("focusOwner", focusListener)
+    updateRegistration(null)
     super.dispose()
   }
 }
 
-private fun createEverywhereMappings(): Map<List<KeyStroke>, NerdTreeAction> =
+internal fun createEverywhereMappings(): Map<List<KeyStroke>, NerdTreeAction> =
   createNavigationMappings().toMutableMap().apply {
+    register("h", NerdTreeAction.swing("selectParent"))
+    register("l", NerdTreeAction.swing("selectChild"))
     // NerdTreeEverywhere must handle all file-opening mappings that NerdTree uses.
     // Multi-key sequences like 'gs'/'gi' add their individual keys ('s', 'i') to the
     // CustomShortcutSet, which would capture those keys and swallow them as invalid

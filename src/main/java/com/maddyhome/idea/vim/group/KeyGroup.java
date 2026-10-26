@@ -311,7 +311,7 @@ public class KeyGroup extends VimKeyGroupBase implements PersistentStateComponen
 
   @Override
   public @NotNull List<NativeAction> getActions(@NotNull VimEditor editor, @NotNull KeyStroke keyStroke) {
-    return getActions(((IjVimEditor)editor).getEditor().getComponent(), keyStroke).stream().map(IjNativeAction::new)
+    return getActions(((IjVimEditor)editor).getEditor().getContentComponent(), keyStroke).stream().map(IjNativeAction::new)
       .collect(toList());
   }
 

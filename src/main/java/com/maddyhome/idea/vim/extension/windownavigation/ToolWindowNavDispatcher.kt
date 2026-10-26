@@ -12,7 +12,9 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.PlatformDataKeys
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.fileEditor.impl.EditorsSplitters
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindowAnchor
 import com.intellij.openapi.wm.ToolWindowType
 import com.intellij.openapi.wm.ex.ToolWindowManagerEx
 import com.maddyhome.idea.vim.api.injector
@@ -85,11 +87,16 @@ private object ToolWindowNavListener : ShortcutDispatcher.Listener<NavDirection>
       val project = e.project ?: return
       val component = e.getData(PlatformDataKeys.CONTEXT_COMPONENT) ?: return
 
-      val twComponent = findToolWindowComponent(component, project) ?: return
-      if (!twComponent.isShowing) return
+      val toolWindow = findToolWindow(component, project) ?: return
+      if (!toolWindow.component.isShowing) return
 
-      val loc = twComponent.locationOnScreen
-      val size = twComponent.size
+      if (data == NavDirection.UP && toolWindow.anchor == ToolWindowAnchor.BOTTOM) {
+        EditorsSplitters.focusDefaultComponentInSplittersIfPresent(project)
+        return
+      }
+
+      val loc = toolWindow.component.locationOnScreen
+      val size = toolWindow.component.size
       val currentBounds = Rectangle(loc, size)
       val refPoint = Point(loc.x + size.width / 2, loc.y + size.height / 2)
 
@@ -105,10 +112,10 @@ private object ToolWindowNavListener : ShortcutDispatcher.Listener<NavDirection>
     injector.messages.indicateError()
   }
 
-  private fun findToolWindowComponent(
+  private fun findToolWindow(
     component: java.awt.Component,
     project: Project,
-  ): JComponent? {
+  ): ToolWindowContext? {
     val twm = ToolWindowManagerEx.getInstanceEx(project)
     for (id in twm.toolWindowIds) {
       val tw = twm.getToolWindow(id) ?: continue
@@ -116,11 +123,16 @@ private object ToolWindowNavListener : ShortcutDispatcher.Listener<NavDirection>
       if (tw.type == ToolWindowType.FLOATING || tw.type == ToolWindowType.WINDOWED) continue
       val twComp = tw.component ?: continue
       if (SwingUtilities.isDescendingFrom(component, twComp)) {
-        return twComp
+        return ToolWindowContext(tw.anchor, twComp)
       }
     }
     return null
   }
+
+  private data class ToolWindowContext(
+    val anchor: ToolWindowAnchor,
+    val component: JComponent,
+  )
 }
 
 private fun isCtrlW(keyEvent: KeyEvent): Boolean {

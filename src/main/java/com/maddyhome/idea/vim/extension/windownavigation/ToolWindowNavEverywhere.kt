@@ -27,28 +27,37 @@ internal class ToolWindowNavEverywhere : VimExtension {
 
   override fun getName() = PLUGIN_NAME
 
+  private var registeredFocusOwner: JComponent? = null
+
   val focusListener = PropertyChangeListener { evt ->
-    val newFocusOwner = evt.newValue as? JComponent
-    val oldFocusOwner = evt.oldValue as? JComponent
+    updateRegistration(evt.newValue as? JComponent)
+  }
+
+  private fun updateRegistration(focusOwner: JComponent?) {
+    if (focusOwner === registeredFocusOwner) return
+
     val dispatcher = service<ToolWindowNavDispatcher>()
 
-    if (newFocusOwner != null && isInsideToolWindow(newFocusOwner) && !isPythonConsoleComponent(newFocusOwner)) {
-      dispatcher.register(newFocusOwner)
-    }
-
-    if (oldFocusOwner != null && isInsideToolWindow(oldFocusOwner)) {
-      dispatcher.unregisterCustomShortcutSet(oldFocusOwner)
+    registeredFocusOwner?.let(dispatcher::unregisterCustomShortcutSet)
+    if (focusOwner != null && isInsideToolWindow(focusOwner) && !isPythonConsoleComponent(focusOwner)) {
+      dispatcher.register(focusOwner)
+      registeredFocusOwner = focusOwner
+    } else {
+      registeredFocusOwner = null
     }
   }
 
   override fun init() {
-    KeyboardFocusManager.getCurrentKeyboardFocusManager()
-      .addPropertyChangeListener("focusOwner", focusListener)
+    val focusManager = KeyboardFocusManager.getCurrentKeyboardFocusManager()
+    focusManager.addPropertyChangeListener("focusOwner", focusListener)
+    updateRegistration(focusManager.focusOwner as? JComponent)
   }
 
   override fun dispose() {
     KeyboardFocusManager.getCurrentKeyboardFocusManager()
       .removePropertyChangeListener("focusOwner", focusListener)
+    registeredFocusOwner?.let(service<ToolWindowNavDispatcher>()::unregisterCustomShortcutSet)
+    registeredFocusOwner = null
     super.dispose()
   }
 
@@ -69,6 +78,7 @@ internal class ToolWindowNavEverywhere : VimExtension {
       if (project.isDisposed) continue
       val toolWindowManager = ToolWindowManager.getInstance(project)
       for (id in toolWindowManager.toolWindowIds) {
+        if (id == EditorHelper.PYTHON_CONSOLE_TOOL_WINDOW_ID) continue
         val toolWindow = toolWindowManager.getToolWindow(id) ?: continue
         if (!toolWindow.isVisible) continue
         if (toolWindow.type == ToolWindowType.FLOATING || toolWindow.type == ToolWindowType.WINDOWED) continue

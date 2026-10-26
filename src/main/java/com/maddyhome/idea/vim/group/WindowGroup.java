@@ -101,7 +101,10 @@ public class WindowGroup extends WindowGroupBase {
       }
       var rect = getSplitRectangle(w);
       if (rect != null) {
-        targets.add(new NavTarget(rect, () -> w.setAsCurrentWindow(true)));
+        targets.add(new NavTarget(rect, () -> {
+          w.setAsCurrentWindow(true);
+          w.requestFocus(true);
+        }));
       }
     }
     return targets;

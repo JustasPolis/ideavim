@@ -590,6 +590,11 @@
   </extensions>
 
   <actions>
+    <action id="VimChatCopyMode" class="com.maddyhome.idea.vim.extension.chatcopy.AirChatCopyModeAction"
+            text="IdeaVim: Chat Copy Mode" description="Navigate and select Air's rendered transcript in place">
+      <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift X"/>
+      <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="ctrl shift X"/>
+    </action>
     <action class="com.maddyhome.idea.vim.extension.hints.ToggleHintsAction" text="Toggle Hints">
       <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift BACK_SLASH"/>
       <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="ctrl meta BACK_SLASH"/>

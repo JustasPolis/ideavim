@@ -49,19 +49,21 @@ abstract class AbstractDispatcher(name: String, private val createMappings: () -
   }
 
   override fun update(e: AnActionEvent) {
+    val tree = e.getData(PlatformDataKeys.CONTEXT_COMPONENT) as? Tree
+    if (tree == null || tree.isEditing || e.getData(PlatformDataKeys.SPEED_SEARCH_TEXT) != null) {
+      keyStrokes.clear()
+      e.presentation.isEnabled = false
+      return
+    }
     e.presentation.isEnabled = true
     // If <ESC> is pressed, clear the keys; skip only if there are no keys
     if ((e.inputEvent as? KeyEvent)?.keyCode == KeyEvent.VK_ESCAPE) {
       e.presentation.isEnabled = keyStrokes.isNotEmpty()
       keyStrokes.clear()
     }
-    // Skip if SpeedSearch is active
-    if (e.getData(PlatformDataKeys.SPEED_SEARCH_TEXT) != null) {
-      e.presentation.isEnabled = false
-    }
   }
 
-  override fun getActionUpdateThread() = ActionUpdateThread.BGT
+  override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
   companion object {
     val LOG = vimLogger<AbstractDispatcher>()
